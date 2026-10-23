@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f5f6f2" />
+    <meta name="description" content="Match sales CSV rows to public Stellar payment records in your browser." />
+    <title>Current — Stellar payment reconciliation</title>
+    <link rel="preconnect" href="https://horizon.stellar.org" />
+    <link rel="preconnect" href="https://horizon-testnet.stellar.org" />
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./app.js" defer></script>
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar" aria-label="Main navigation">
+        <a class="brand" href="#" aria-label="Current home"><span class="brand-mark">c</span><span>current<span class="brand-period">.</span></span></a>
+        <div class="workspace-label">WORKSPACE</div>
+        <nav>
+          <a class="nav-link active" href="#overview"><span class="nav-icon">◫</span>Overview</a>
+          <a class="nav-link" href="#activity"><span class="nav-icon">↔</span>Payments</a>
+        </nav>
+        <div class="sidebar-bottom">
+          <div class="network-card"><span class="network-dot"></span><div><strong id="sidebar-network">Stellar Mainnet</strong><small>Public ledger</small></div></div>
+          <div class="profile"><div class="profile-avatar">M</div><div><strong>Merchant view</strong><small>Read-only access</small></div></div>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar"><div class="breadcrumb">Workspace <span>/</span> <strong>Overview</strong></div><div class="top-actions"><span class="live-label"><span class="live-dot"></span>Live ledger</span><button class="icon-button" id="refresh-button" aria-label="Refresh ledger" title="Refresh ledger">↻</button></div></header>
+
+        <section class="page-heading" id="overview">
+          <div><h1>Match Stellar payments<br class="mobile-break" /> to the sales you recorded.</h1><p>Import a sales CSV, compare public payment records, and export reviewed matches.</p></div>
+          <div class="heading-tools"><label class="network-select-label" for="network-select">NETWORK</label><select id="network-select" aria-label="Select Stellar network"><option value="mainnet">Stellar Mainnet</option><option value="testnet">Stellar Testnet</option></select></div>
+        </section>
+
+        <section class="connect-panel" id="connect-panel" aria-labelledby="connect-title">
+          <div class="connect-copy"><div class="connect-icon">↗</div><div><h2 id="connect-title">View a Stellar account</h2><p>Paste a public account address. Current only reads public ledger data; it never asks for a secret key.</p></div></div>
+          <form class="connect-form" id="account-form"><label class="sr-only" for="account-input">Stellar public account address</label><input id="account-input" name="account" autocomplete="off" spellcheck="false" placeholder="G… public address" required /><button class="primary-button" type="submit">View account <span aria-hidden="true">→</span></button></form>
+          <div class="connect-foot"><span>Public address only</span><span>·</span><span>No wallet connection required</span></div>
+        </section>
+
+        <div class="notice" id="status-message" role="status" aria-live="polite" hidden></div>
+
+        <section class="overview-grid" aria-label="Account summary">
+          <article class="metric-card balance-card"><div class="metric-top"><span class="metric-label">NATIVE XLM BALANCE</span><span class="metric-symbol">◉</span></div><div class="metric-value" id="total-balance">—</div><div class="metric-caption" id="balance-caption">Connect an account to see balances</div></article>
+          <article class="metric-card"><div class="metric-top"><span class="metric-label">RECEIVED RECORDS</span><span class="metric-symbol incoming">↓</span></div><div class="metric-value" id="received-count">—</div><div class="metric-caption">Loaded successful operations</div></article>
+          <article class="metric-card"><div class="metric-top"><span class="metric-label">SENT RECORDS</span><span class="metric-symbol outgoing">↑</span></div><div class="metric-value" id="sent-count">—</div><div class="metric-caption">Loaded successful operations</div></article>
+        </section>
+
+        <section class="assets-panel" id="assets-panel" aria-labelledby="assets-title" hidden>
+          <div class="assets-heading"><div><div class="eyebrow">ACCOUNT HOLDINGS</div><h2 id="assets-title">Issued assets</h2></div><span class="asset-count" id="asset-count"></span></div>
+          <div class="asset-list" id="asset-list"></div>
+        </section>
+
+        <section class="assets-panel reconcile-panel" id="reconcile" aria-labelledby="reconcile-title">
+          <div class="assets-heading"><div><div class="eyebrow">LOCAL WORKSPACE</div><h2 id="reconcile-title">Reconcile a sales export</h2></div><span class="asset-count">CSV stays in this browser</span></div>
+          <p class="reconcile-intro">Import an order or sales CSV, map the expected amount and asset, then review possible matches against the payment records loaded below. Matching uses amount and asset; it does not verify a memo or guarantee accounting completeness.</p>
+          <div class="reconcile-controls">
+            <label class="file-picker">Choose CSV<input id="csv-input" type="file" accept=".csv,text/csv" disabled /></label>
+            <span id="csv-name" class="csv-name">Load an account first</span>
+            <label class="mapping-field">Amount column<select id="amount-column" disabled><option value="">Choose column</option></select></label>
+            <label class="mapping-field">Asset column<select id="asset-column" disabled><option value="">Choose column</option></select></label>
+            <label class="mapping-field">Issuer column (optional)<select id="issuer-column" disabled><option value="">No issuer column</option></select></label>
+            <label class="mapping-field">Date column (optional)<select id="date-column" disabled><option value="">No date filter</option></select></label>
+            <button class="secondary-button" id="match-button" disabled>Find matches</button>
+          </div>
+          <div class="match-summary" id="match-summary" role="status" aria-live="polite">Load an account and choose a CSV to begin.</div>
+          <div class="table-wrap match-table-wrap" id="match-table-wrap" hidden><table><thead><tr><th>ORDER ROW</th><th>EXPECTED</th><th>CANDIDATE PAYMENT</th><th>RESULT</th></tr></thead><tbody id="matches-body"></tbody></table></div>
+          <div class="table-footer"><span>Only records currently loaded from Horizon are compared.</span><button id="export-match-button" class="text-button" disabled>Export reviewed results →</button></div>
+        </section>
+
+        <section class="activity-section" id="activity" aria-labelledby="activity-title">
+          <div class="section-heading"><div><div class="eyebrow">ACCOUNT HISTORY</div><h2 id="activity-title">Recent payment activity</h2></div><div class="activity-tools"><label class="search-box"><span aria-hidden="true">⌕</span><input id="search-input" type="search" placeholder="Search activity" aria-label="Search payment activity" disabled /></label><select id="direction-filter" class="filter-select" aria-label="Filter by direction" disabled><option value="all">All activity</option><option value="received">Received</option><option value="sent">Sent</option></select><select id="asset-filter" class="filter-select" aria-label="Filter by asset" disabled><option value="all">All assets</option></select><label class="date-filter"><span>From</span><input id="date-from" type="date" aria-label="Payments from date" disabled /></label><label class="date-filter"><span>To</span><input id="date-to" type="date" aria-label="Payments to date" disabled /></label><button class="secondary-button" id="export-button" disabled>↓ <span>Export CSV</span></button></div></div>
+          <div class="table-wrap"><table><thead><tr><th scope="col">PAYMENT</th><th scope="col">ASSET</th><th scope="col">COUNTERPARTY</th><th scope="col">DATE</th><th scope="col" class="align-right">AMOUNT</th></tr></thead><tbody id="payments-body"><tr class="empty-row"><td colspan="5"><div class="empty-state"><div class="empty-mark">↔</div><strong>Your ledger will show up here</strong><span>Enter a public Stellar address above to view its latest payments.</span></div></td></tr></tbody></table></div>
+          <div class="table-footer"><span id="activity-caption">Showing latest payments for the selected account</span><button id="load-more" class="text-button" hidden>Load more <span>→</span></button></div>
+        </section>
+        <footer class="page-footer"><span>Current is read-only. Transactions are fetched from Stellar’s public Horizon API.</span><a href="https://developers.stellar.org/docs/data/apis/horizon" target="_blank" rel="noreferrer">About Horizon <span aria-hidden="true">↗</span></a></footer>
+      </main>
+    </div>
+  </body>
+</html>
